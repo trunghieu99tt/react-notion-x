@@ -1,4 +1,5 @@
-import * as React from 'react'
+import { getBlockValue } from 'notion-utils'
+import React from 'react'
 
 import { useNotionContext } from '../context'
 import { type CollectionViewProps } from '../types'
@@ -7,6 +8,8 @@ import { CollectionColumnTitle } from './collection-column-title'
 import { CollectionGroup } from './collection-group'
 import { getCollectionGroups } from './collection-utils'
 import { Property } from './property'
+import { useClientStyle } from './react-use'
+import { TableCellTooltip } from './table-cell-tooltip'
 
 const defaultBlockIds: string[] = []
 
@@ -72,21 +75,35 @@ function Table({
 } & Omit<CollectionViewProps, 'collectionData'>) {
   const { recordMap, linkTableTitleProperties } = useNotionContext()
 
-  const tableStyle = React.useMemo(
-    () => ({
+  const [isExpanded, setIsExpanded] = React.useState(false)
+
+  // View-level wrap default; absence means false (Notion convention)
+  const tableWrap = collectionView.format?.table_wrap ?? false
+
+  const tableRef = React.useRef<HTMLDivElement | null>(null)
+
+  const { inline_collection_first_load_limit } = collectionView.format || {}
+  const loadLimit = inline_collection_first_load_limit?.limit
+  const shouldLimit = typeof loadLimit === 'number'
+
+  const showLoadMore =
+    shouldLimit && !isExpanded && (blockIds?.length || 0) > loadLimit
+  const visibleBlockIds = showLoadMore
+    ? blockIds?.slice(0, loadLimit)
+    : blockIds
+
+  const tableStyle = useClientStyle(
+    {
       width,
       maxWidth: width
-    }),
-    [width]
+    },
+    { visibility: 'hidden' }
   )
 
-  const tableViewStyle = React.useMemo(
-    () => ({
-      paddingLeft: padding,
-      paddingRight: padding
-    }),
-    [padding]
-  )
+  const tableViewStyle = useClientStyle({
+    paddingLeft: padding,
+    paddingRight: padding
+  })
 
   let properties = []
 
@@ -103,7 +120,7 @@ function Table({
   }
 
   return (
-    <div className='notion-table' style={tableStyle}>
+    <div className='notion-table' style={tableStyle} ref={tableRef}>
       <div className='notion-table-view' style={tableViewStyle}>
         {!!properties.length && (
           <>
@@ -142,11 +159,11 @@ function Table({
             <div className='notion-table-header-placeholder'></div>
 
             <div className='notion-table-body'>
-              {blockIds?.map((blockId) => (
+              {visibleBlockIds?.map((blockId) => (
                 <div className='notion-table-row' key={blockId}>
                   {properties.map((p: any) => {
                     const schema = collection.schema?.[p.property]
-                    const block = recordMap.block[blockId]?.value
+                    const block = getBlockValue(recordMap.block[blockId])
                     const data = block?.properties?.[p.property]
                     const isTitle = p.property === 'title'
                     const style: React.CSSProperties = {}
@@ -160,12 +177,16 @@ function Table({
                       // style.width = `${100.0 / properties.length}%`
                     }
 
+                    // Per-column wrap overrides view-level default
+                    const cellWrap = p.wrap ?? tableWrap
+
                     return (
                       <div
                         key={p.property}
                         className={cs(
                           'notion-table-cell',
-                          `notion-table-cell-${schema?.type}`
+                          `notion-table-cell-${schema?.type}`,
+                          !cellWrap && 'notion-table-cell-nowrap'
                         )}
                         style={style}
                       >
@@ -182,9 +203,33 @@ function Table({
                 </div>
               ))}
             </div>
+
+            <TableCellTooltip tableRef={tableRef} />
           </>
         )}
       </div>
+
+      {showLoadMore && (
+        <div
+          className='notion-collection-load-more'
+          onClick={() => setIsExpanded(true)}
+        >
+          <svg
+            viewBox='0 0 24 24'
+            height='16'
+            width='16'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='2'
+            strokeLinecap='round'
+            strokeLinejoin='round'
+          >
+            <path d='M12 5v14' />
+            <path d='m19 12-7 7-7-7' />
+          </svg>
+          Load more
+        </div>
+      )}
     </div>
   )
 }

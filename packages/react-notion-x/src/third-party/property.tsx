@@ -3,7 +3,7 @@ import type * as types from 'notion-types'
 import { format } from 'date-fns/format'
 import formatNumber from 'format-number'
 import { type FormulaResult } from 'notion-types'
-import * as React from 'react'
+import React from 'react'
 
 import { Checkbox } from '../components/checkbox'
 import { GracefulImage } from '../components/graceful-image'
@@ -92,7 +92,7 @@ export function PropertyImpl(props: IPropertyProps) {
           }
 
           if (content instanceof Date) {
-            content = format(content, 'MMM d, YYY hh:mm aa')
+            content = format(content, 'MMM d, yyyy hh:mm aa')
           }
         } catch {
           // console.log('error evaluating formula', schema.formula, err)
@@ -182,28 +182,55 @@ export function PropertyImpl(props: IPropertyProps) {
       function UrlProperty() {
         if (!data) return null
 
-        // TODO: refactor to less hacky solution
-        const d = structuredClone(data)
+        const rawUrl = data[0]?.[0]
+        if (!rawUrl) return null
 
-        if (inline) {
-          try {
-            const url = new URL(d[0]?.[0]!)
-            d[0]![0] = url.hostname.replace(/^www\./, '')
-          } catch {
-            // ignore invalid urls
+        // Parse the URL for two-tone abbreviated display
+        let domain = rawUrl
+        let path = ''
+        let fullUrl = rawUrl
+
+        try {
+          const url = new URL(rawUrl)
+          domain = url.hostname.replace(/^www\./, '')
+          const rawPath = url.pathname === '/' ? '' : url.pathname
+          fullUrl = url.href
+
+          // Abbreviate path with middle-truncation, matching Notion native
+          // e.g. /2026/01/26/nx-s1-5684190/news-iran-protests-internet
+          //    → /202...ternet
+          if (rawPath && rawPath.length > 20) {
+            const head = rawPath.slice(0, 8)
+            const tail = rawPath.slice(-8)
+            path = `${head}...${tail}`
+          } else {
+            path = rawPath
           }
+        } catch {
+          // For invalid URLs, render as-is
+          return (
+            <Text
+              value={data}
+              block={block!}
+              inline={inline}
+              linkProps={{
+                target: '_blank',
+                rel: 'noreferrer noopener'
+              }}
+            />
+          )
         }
 
         return (
-          <Text
-            value={d}
-            block={block!}
-            inline={inline}
-            linkProps={{
-              target: '_blank',
-              rel: 'noreferrer noopener'
-            }}
-          />
+          <a
+            href={fullUrl}
+            target='_blank'
+            rel='noreferrer noopener'
+            className='notion-link'
+          >
+            <span className='notion-url-domain'>{domain}</span>
+            {path && <span className='notion-url-path'>{path}</span>}
+          </a>
         )
       },
     [block, data, inline]
@@ -437,7 +464,7 @@ export function PropertyImpl(props: IPropertyProps) {
   const renderCreatedTimeValue = React.useMemo(
     () =>
       function CreatedTimeProperty() {
-        return format(new Date(block!.created_time), 'MMM d, YYY hh:mm aa')
+        return format(new Date(block!.created_time), 'MMM d, yyyy hh:mm aa')
       },
     [block]
   )
@@ -445,7 +472,7 @@ export function PropertyImpl(props: IPropertyProps) {
   const renderLastEditedTimeValue = React.useMemo(
     () =>
       function LastEditedTimeProperty() {
-        return format(new Date(block!.last_edited_time), 'MMM d, YYY hh:mm aa')
+        return format(new Date(block!.last_edited_time), 'MMM d, yyyy hh:mm aa')
       },
     [block]
   )
@@ -525,7 +552,10 @@ export function PropertyImpl(props: IPropertyProps) {
       case 'select':
       // intentional fallthrough
       case 'multi_select': {
-        const values = (data?.[0]?.[0] || '').split(',')
+        const originalValues = (data?.[0]?.[0] || '').split(',')
+        const values = originalValues.filter((value) =>
+          schema.options?.some((option) => value === option.value)
+        )
 
         content = values.map((value, index) => {
           const option = schema.options?.find(

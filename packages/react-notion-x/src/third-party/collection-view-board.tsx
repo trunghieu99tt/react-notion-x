@@ -1,6 +1,7 @@
 import type * as types from 'notion-types'
 import { type PageBlock } from 'notion-types'
-import * as React from 'react'
+import { getBlockValue } from 'notion-utils'
+import React from 'react'
 
 import { useNotionContext } from '../context'
 import { EmptyIcon } from '../icons/empty-icon'
@@ -159,7 +160,9 @@ function Board({
             return (
               <div className='notion-board-group' key={index}>
                 {group.blockIds?.map((blockId: string) => {
-                  const block = recordMap.block[blockId]?.value as PageBlock
+                  const block = getBlockValue(
+                    recordMap.block[blockId]
+                  ) as PageBlock
                   if (!block) return null
 
                   return (

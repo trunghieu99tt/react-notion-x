@@ -3,13 +3,14 @@ import {
   type Decoration,
   type ExternalObjectInstance
 } from 'notion-types'
-import { parsePageId } from 'notion-utils'
-import * as React from 'react'
+import { getBlockValue, parsePageId } from 'notion-utils'
+import React from 'react'
 
 import { useNotionContext } from '../context'
 import { formatDate, getHashFragmentValue } from '../utils'
 import { EOI } from './eoi'
 import { GracefulImage } from './graceful-image'
+import { LinkMention, type LinkMentionData } from './link-mention'
 import { PageTitle } from './page-title'
 
 /**
@@ -20,6 +21,7 @@ import { PageTitle } from './page-title'
  * TODO: I think this implementation would be more correct if the reduce just added
  * attributes to the final element's style.
  */
+
 export function Text({
   value,
   block,
@@ -57,7 +59,7 @@ export function Text({
               case 'p': {
                 // link to an internal block (within the current workspace)
                 const blockId = decorator[1]
-                const linkedBlock = recordMap.block[blockId]?.value
+                const linkedBlock = getBlockValue(recordMap.block[blockId])
                 if (!linkedBlock) {
                   console.log('"p" missing block', blockId)
                   return null
@@ -66,12 +68,12 @@ export function Text({
                 // console.log('p', blockId)
 
                 return (
-                  <components.PageLink
+                  <components.Link
                     className='notion-link'
                     href={mapPageUrl(blockId)}
                   >
                     <PageTitle block={linkedBlock} />
-                  </components.PageLink>
+                  </components.Link>
                 )
               }
 
@@ -82,7 +84,7 @@ export function Text({
 
                 switch (linkType) {
                   case 'u': {
-                    const user = recordMap.notion_user[id]?.value
+                    const user = getBlockValue(recordMap.notion_user[id])
 
                     if (!user) {
                       console.log('"‣" missing user', id)
@@ -106,7 +108,7 @@ export function Text({
                   }
 
                   default: {
-                    const linkedBlock = recordMap.block[id]?.value
+                    const linkedBlock = getBlockValue(recordMap.block[id])
 
                     if (!linkedBlock) {
                       console.log('"‣" missing block', linkType, id)
@@ -114,7 +116,7 @@ export function Text({
                     }
 
                     return (
-                      <components.PageLink
+                      <components.Link
                         className='notion-link'
                         href={mapPageUrl(id)}
                         {...linkProps}
@@ -122,7 +124,7 @@ export function Text({
                         rel='noopener noreferrer'
                       >
                         <PageTitle block={linkedBlock} />
-                      </components.PageLink>
+                      </components.Link>
                     )
                   }
                 }
@@ -172,13 +174,13 @@ export function Text({
                       : `${mapPageUrl(id!)}${getHashFragmentValue(v)}`
 
                   return (
-                    <components.PageLink
+                    <components.Link
                       className='notion-link'
                       href={href}
                       {...linkProps}
                     >
                       {element}
-                    </components.PageLink>
+                    </components.Link>
                   )
                 } else {
                   return (
@@ -225,7 +227,7 @@ export function Text({
 
               case 'u': {
                 const userId = decorator[1]
-                const user = recordMap.notion_user[userId]?.value
+                const user = getBlockValue(recordMap.notion_user[userId])
 
                 if (!user) {
                   console.log('missing user', userId)
@@ -244,13 +246,42 @@ export function Text({
                 )
               }
 
+              case 'lm': {
+                const metadata = decorator[1] as unknown as LinkMentionData
+                return <LinkMention metadata={metadata} />
+              }
+
               case 'eoi': {
                 const blockId = decorator[1]
-                const externalObjectInstance = recordMap.block[blockId]
-                  ?.value as ExternalObjectInstance
+                const externalObjectInstance = getBlockValue(
+                  recordMap.block[blockId]
+                ) as ExternalObjectInstance
+                if (!externalObjectInstance) {
+                  console.log('"eoi" missing block', blockId)
+                  return null
+                }
 
                 return <EOI block={externalObjectInstance} inline={true} />
               }
+
+              case 'ce': {
+                const customEmojiId = decorator[1]
+                const emojiUrl = recordMap.custom_emojis?.[customEmojiId]
+                if (!emojiUrl) {
+                  console.log('missing custom emoji', customEmojiId)
+                  return null
+                }
+                return (
+                  <GracefulImage
+                    className='notion-custom-emoji'
+                    src={emojiUrl}
+                    alt='custom emoji'
+                  />
+                )
+              }
+
+              case 'si':
+                return null
 
               default:
                 if (process.env.NODE_ENV !== 'production') {

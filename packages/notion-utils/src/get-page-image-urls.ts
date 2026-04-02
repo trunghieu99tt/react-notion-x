@@ -1,6 +1,7 @@
 import type * as types from 'notion-types'
 
 import { getBlockIcon } from './get-block-icon'
+import { getBlockValue } from './get-block-value'
 import { isUrl } from './is-url'
 
 /**
@@ -11,13 +12,13 @@ export const getPageImageUrls = (
   {
     mapImageUrl
   }: {
-    mapImageUrl: (url: string, block: types.Block) => string | null
+    mapImageUrl: (url: string, block: types.Block) => string | undefined
   }
 ): string[] => {
   const blockIds = Object.keys(recordMap.block)
   const imageUrls: string[] = blockIds
     .flatMap((blockId) => {
-      const block = recordMap.block[blockId]?.value
+      const block = getBlockValue(recordMap.block[blockId])
       const images: Array<{ block: types.Block; url: string }> = []
 
       if (block) {

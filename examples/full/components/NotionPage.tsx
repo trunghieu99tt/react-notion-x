@@ -15,60 +15,89 @@ import { Loading } from './Loading'
 // -----------------------------------------------------------------------------
 
 const Code = dynamic(() =>
-  import('react-notion-x/build/third-party/code').then(async (m) => {
+  import('react-notion-x/third-party/code').then(async (m) => {
     // additional prism syntaxes
     await Promise.all([
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-markup-templating.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-markup.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-bash.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-c.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-cpp.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-csharp.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-docker.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-java.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-js-templates.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-coffeescript.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-diff.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-git.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-go.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-graphql.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-handlebars.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-less.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-makefile.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-markdown.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-objectivec.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-ocaml.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-python.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-reason.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-rust.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-sass.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-scss.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-solidity.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-sql.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-stylus.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-swift.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-wasm.js'),
+      // @ts-expect-error ignore no prisma types
       import('prismjs/components/prism-yaml.js')
     ])
     return m.Code
   })
 )
 const Collection = dynamic(() =>
-  import('react-notion-x/build/third-party/collection').then(
-    (m) => m.Collection
-  )
+  import('react-notion-x/third-party/collection').then((m) => m.Collection)
 )
 const Equation = dynamic(() =>
-  import('react-notion-x/build/third-party/equation').then((m) => m.Equation)
+  import('react-notion-x/third-party/equation').then((m) => m.Equation)
 )
 const Pdf = dynamic(
-  () => import('react-notion-x/build/third-party/pdf').then((m) => m.Pdf),
+  () => import('react-notion-x/third-party/pdf').then((m) => m.Pdf),
   {
     ssr: false
   }
 )
 const Modal = dynamic(
-  () => import('react-notion-x/build/third-party/modal').then((m) => m.Modal),
+  () => import('react-notion-x/third-party/modal').then((m) => m.Modal),
   {
     ssr: false
   }
@@ -82,14 +111,40 @@ export function NotionPage({
   recordMap,
   previewImagesEnabled,
   rootPageId,
-  rootDomain
+  rootDomain,
+  enabled = true
 }: {
   recordMap: ExtendedRecordMap
   previewImagesEnabled?: boolean
   rootPageId?: string
   rootDomain?: string
+  enabled?: boolean
 }) {
   const router = useRouter()
+
+  if (!enabled) {
+    return (
+      <div style={{ padding: '20px' }}>
+        <p>
+          Hey 👋 I've disabled the public demo for subpages for{' '}
+          <a
+            href='https://github.com/NotionX/react-notion-x'
+            target='_blank'
+            rel='noopener noreferrer'
+          >
+            react-notion-x
+          </a>{' '}
+          for now because my Vercel bill keeps increasing due to people abusing
+          the demo.
+        </p>
+
+        <p>
+          You can still run the demos locally by checking out the git repo and
+          following the instructions in the readme.
+        </p>
+      </div>
+    )
+  }
 
   if (router.isFallback) {
     return <Loading />
@@ -99,12 +154,12 @@ export function NotionPage({
     return null
   }
 
-  const title = getPageTitle(recordMap)
+  const title = getPageTitle(recordMap) ?? ''
 
   // useful for debugging from the dev console
   if (typeof window !== 'undefined') {
     const keys = Object.keys(recordMap?.block || {})
-    const block = recordMap?.block?.[keys[0]]?.value
+    const block = recordMap?.block?.[keys[0]!]?.value
     const g = window as any
     g.recordMap = recordMap
     g.block = block

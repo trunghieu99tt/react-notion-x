@@ -132,6 +132,10 @@ export function convertBlock({
       compatBlock.type = 'sub_sub_header'
       break
 
+    case 'heading_4' as any:
+      compatBlock.type = 'header_4'
+      break
+
     case 'bulleted_list_item':
       compatBlock.type = 'bulleted_list'
       break
@@ -227,7 +231,8 @@ export function convertBlock({
         if (page) {
           if (page.properties.title) {
             compatBlock.properties.title = convertRichText(
-              (page.properties.title as any).title
+              (page.properties.title as any).rich_text ||
+                (page.properties.title as any).title
             )
           }
 
@@ -460,8 +465,18 @@ export function convertBlock({
     }
 
     case 'image':
-      // no-op
-      // TODO: handle formatting
+      // TODO : Add image format
+      if (block.image) {
+        compatBlock.properties.source = [
+          [(block.image as any).file?.url || (block.image as any).external?.url]
+        ]
+
+        if (block.image.caption) {
+          compatBlock.properties.caption = block.image.caption.map((caption) =>
+            convertRichText([caption])
+          )
+        }
+      }
       break
 
     case 'audio':

@@ -15,7 +15,7 @@ import { type CodeBlock } from 'notion-types'
 import { getBlockTitle } from 'notion-utils'
 // eslint-disable-next-line import/no-duplicates, no-duplicate-imports
 import prism from 'prismjs'
-import * as React from 'react'
+import React from 'react'
 
 import { Text } from '../components/text'
 import { useNotionContext } from '../context'
@@ -32,7 +32,7 @@ export function Code({
   className?: string
 }) {
   const [isCopied, setIsCopied] = React.useState(false)
-  const copyTimeout = React.useRef<number>()
+  const copyTimeout = React.useRef<number | undefined>(undefined)
   const { recordMap } = useNotionContext()
   const content = getBlockTitle(block, recordMap)
   const language = (() => {
@@ -51,7 +51,7 @@ export function Code({
   })()
   const caption = block.properties.caption
 
-  const codeRef = React.useRef()
+  const codeRef = React.useRef<HTMLElement | null>(null)
   React.useEffect(() => {
     if (codeRef.current) {
       try {
@@ -63,7 +63,7 @@ export function Code({
   }, [codeRef])
 
   const onClickCopyToClipboard = React.useCallback(() => {
-    copyToClipboard(content)
+    void copyToClipboard(content)
     setIsCopied(true)
 
     if (copyTimeout.current) {
@@ -84,7 +84,11 @@ export function Code({
 
   return (
     <>
-      <pre className={cs('notion-code', className)}>
+      <pre
+        className={cs('notion-code', `language-${language}`, className)}
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+        tabIndex={0}
+      >
         <div className='notion-code-copy'>
           {copyButton}
 

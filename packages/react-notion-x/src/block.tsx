@@ -1,17 +1,21 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 import type * as types from 'notion-types'
 import {
   getBlockCollectionId,
   getBlockIcon,
   getBlockParentPage,
+  getBlockValue,
+  getListNestingLevel,
+  getListNumber,
+  getListStyle,
   getPageTableOfContents,
   getTextContent,
   uuidToId
 } from 'notion-utils'
-import * as React from 'react'
+import React from 'react'
 
 import { AssetWrapper } from './components/asset-wrapper'
 import { Audio } from './components/audio'
+import { Button } from './components/button'
 import { EOI } from './components/eoi'
 import { File } from './components/file'
 import { GoogleDrive } from './components/google-drive'
@@ -20,12 +24,13 @@ import { PageAside } from './components/page-aside'
 import { PageIcon } from './components/page-icon'
 import { PageTitle } from './components/page-title'
 import { SyncPointerBlock } from './components/sync-pointer-block'
+import { TabBlock } from './components/tab-block'
 import { Text } from './components/text'
 import { useNotionContext } from './context'
 import { LinkIcon } from './icons/link-icon'
-import { cs, getListNumber, isUrl } from './utils'
+import { cs, isUrl } from './utils'
 
-interface BlockProps {
+export interface BlockProps {
   block: types.Block
   level: number
 
@@ -120,10 +125,11 @@ export function Block(props: BlockProps) {
             block.type === 'page'
               ? block.properties
               : {
-                  title:
+                  title: getBlockValue(
                     recordMap.collection[
                       getBlockCollectionId(block, recordMap)!
-                    ]?.value?.name
+                    ]
+                  )?.name
                 }
 
           const coverPosition = (1 - (page_cover_position || 0.5)) * 100
@@ -302,7 +308,9 @@ export function Block(props: BlockProps) {
     // fallthrough
     case 'sub_header':
     // fallthrough
-    case 'sub_sub_header': {
+    case 'sub_sub_header':
+    // fallthrough
+    case 'header_4': {
       if (!block.properties) return null
 
       const blockColor = block.format?.block_color
@@ -335,11 +343,13 @@ export function Block(props: BlockProps) {
       const isH1 = block.type === 'header'
       const isH2 = block.type === 'sub_header'
       const isH3 = block.type === 'sub_sub_header'
+      const isH4 = block.type === 'header_4'
 
       const classNameStr = cs(
         isH1 && 'notion-h notion-h1',
         isH2 && 'notion-h notion-h2',
         isH3 && 'notion-h notion-h3',
+        isH4 && 'notion-h notion-h4',
         blockColor && `notion-${blockColor}`,
         indentLevelClass,
         blockId
@@ -374,11 +384,17 @@ export function Block(props: BlockProps) {
             {innerHeader}
           </h3>
         )
-      } else {
+      } else if (isH3) {
         headerBlock = (
           <h4 className={classNameStr} data-id={id}>
             {innerHeader}
           </h4>
+        )
+      } else {
+        headerBlock = (
+          <h5 className={classNameStr} data-id={id}>
+            {innerHeader}
+          </h5>
         )
       }
 
@@ -433,24 +449,57 @@ export function Block(props: BlockProps) {
           <ol
             start={start}
             className={cs('notion-list', 'notion-list-numbered', blockId)}
+            style={
+              block.type === 'numbered_list'
+                ? {
+                    listStyleType: getListStyle(
+                      getListNestingLevel(block.id, recordMap.block)
+                    )
+                  }
+                : undefined
+            }
           >
             {content}
           </ol>
         )
 
-      let output: JSX.Element | null = null
+      let output: React.ReactNode | null = null
+      const isTopLevel =
+        block.type !== getBlockValue(recordMap.block[block.parent_id])?.type
+      const start = getListNumber(block.id, recordMap.block)
 
       if (block.content) {
-        output = (
-          <>
-            {block.properties && (
-              <li>
-                <Text value={block.properties.title} block={block} />
-              </li>
-            )}
-            {wrapList(children)}
-          </>
-        )
+        const listItem = block.properties ? (
+          <li>
+            <Text value={block.properties.title} block={block} />
+          </li>
+        ) : null
+
+        if (block.type === 'bulleted_list') {
+          output = (
+            <>
+              {listItem}
+              <ul className={cs('notion-list', 'notion-list-disc', blockId)}>
+                {children}
+              </ul>
+            </>
+          )
+        } else {
+          const nestingLevel = getListNestingLevel(block.id, recordMap.block)
+          output = (
+            <>
+              {listItem}
+              <ol
+                className={cs('notion-list', 'notion-list-numbered', blockId)}
+                style={{
+                  listStyleType: getListStyle(nestingLevel + 1)
+                }}
+              >
+                {children}
+              </ol>
+            </>
+          )
+        }
       } else {
         output = block.properties ? (
           <li>
@@ -458,10 +507,6 @@ export function Block(props: BlockProps) {
           </li>
         ) : null
       }
-
-      const isTopLevel =
-        block.type !== recordMap.block[block.parent_id]?.value?.type
-      const start = getListNumber(block.id, recordMap.block)
 
       return isTopLevel ? wrapList(output, start) : output
     }
@@ -533,7 +578,7 @@ export function Block(props: BlockProps) {
       // note: notion uses 46px
       const spacerWidth = `min(32px, 4vw)`
       const ratio = block.format?.column_ratio || 0.5
-      const parent = recordMap.block[block.parent_id]?.value
+      const parent = getBlockValue(recordMap.block[block.parent_id])
       const columns =
         parent?.content?.length || Math.max(2, Math.ceil(1.0 / ratio))
 
@@ -692,6 +737,18 @@ export function Block(props: BlockProps) {
         </details>
       )
 
+    case 'button': {
+      const ButtonComponent = components.Button || Button
+
+      return (
+        <ButtonComponent
+          blockId={blockId}
+          block={block as types.ButtonBlock}
+          className={blockId}
+        />
+      )
+    }
+
     case 'table_of_contents': {
       const page = getBlockParentPage(block, recordMap)
       if (!page) return null
@@ -759,7 +816,7 @@ export function Block(props: BlockProps) {
 
     case 'alias': {
       const blockPointerId = block?.format?.alias_pointer?.id
-      const linkedBlock = recordMap.block[blockPointerId]?.value
+      const linkedBlock = getBlockValue(recordMap.block[blockPointerId])
       if (!linkedBlock) {
         console.log('"alias" missing block', blockPointerId)
         return null
@@ -783,11 +840,21 @@ export function Block(props: BlockProps) {
       )
 
     case 'table_row': {
-      const tableBlock = recordMap.block[block.parent_id]
-        ?.value as types.TableBlock
+      const tableBlock = getBlockValue(
+        recordMap.block[block.parent_id]
+      ) as types.TableBlock
+      if (!tableBlock) {
+        return null
+      }
+
       const order = tableBlock.format?.table_block_column_order
       const formatMap = tableBlock.format?.table_block_column_format
       const backgroundColor = block.format?.block_color
+
+      const hasRowHeader = tableBlock.format?.table_block_column_header === true
+      const hasColumnHeader = tableBlock.format?.table_block_row_header === true
+
+      const isHeaderRow = hasRowHeader && tableBlock.content?.[0] === block.id
 
       if (!tableBlock || !order) {
         return null
@@ -798,16 +865,22 @@ export function Block(props: BlockProps) {
           className={cs(
             'notion-simple-table-row',
             backgroundColor && `notion-${backgroundColor}`,
+            isHeaderRow && 'notion-simple-table-header-row',
             blockId
           )}
         >
-          {order.map((column) => {
+          {order.map((column, columnIndex) => {
             const color = formatMap?.[column]?.color
+
+            const isHeaderColumn = hasColumnHeader && columnIndex === 0
 
             return (
               <td
                 key={column}
-                className={color ? `notion-${color}` : ''}
+                className={cs(
+                  color ? `notion-${color}` : '',
+                  isHeaderColumn && 'notion-simple-table-header-cell'
+                )}
                 style={{
                   width: formatMap?.[column]?.width || 120
                 }}
@@ -822,6 +895,18 @@ export function Block(props: BlockProps) {
             )
           })}
         </tr>
+      )
+    }
+
+    case 'tab': {
+      const { children: _tabChildren, ...tabBlockProps } = props
+      return (
+        <TabBlock
+          {...tabBlockProps}
+          block={block}
+          blockId={blockId}
+          level={level}
+        />
       )
     }
 

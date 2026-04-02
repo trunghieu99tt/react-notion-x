@@ -1,6 +1,6 @@
 import { type ExtendedRecordMap } from 'notion-types'
 import { defaultMapImageUrl, defaultMapPageUrl } from 'notion-utils'
-import * as React from 'react'
+import React from 'react'
 
 import { AssetWrapper } from './components/asset-wrapper'
 import { Checkbox as DefaultCheckbox } from './components/checkbox'
@@ -112,6 +112,7 @@ const defaultComponents: NotionComponents = {
   PageLink: DefaultPageLinkMemo,
   Checkbox: DefaultCheckbox,
   Callout: undefined, // use the built-in callout rendering by default
+  Button: undefined, // use the built-in button rendering by default
 
   Code: dummyComponent('Code'),
   Equation: dummyComponent('Equation'),

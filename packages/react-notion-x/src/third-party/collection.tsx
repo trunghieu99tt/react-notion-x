@@ -2,9 +2,10 @@ import type * as types from 'notion-types'
 import {
   getBlockCollectionId,
   getBlockParentPage,
+  getBlockValue,
   getTextContent
 } from 'notion-utils'
-import * as React from 'react'
+import React from 'react'
 
 import { PageIcon } from '../components/page-icon'
 import {
@@ -18,7 +19,7 @@ import { CollectionRow } from './collection-row'
 import { CollectionView } from './collection-view'
 import { useLocalStorage, useWindowSize } from './react-use'
 
-const isServer = typeof window === 'undefined'
+const isServer = !globalThis.window
 
 export function Collection({
   block,
@@ -120,8 +121,10 @@ function CollectionViewBlock({
     windowWidth = 1024
   }
 
-  const collection = recordMap.collection[collectionId]?.value
-  const collectionView = recordMap.collection_view[collectionViewId]?.value
+  const collection = getBlockValue(recordMap.collection[collectionId])
+  const collectionView = getBlockValue(
+    recordMap.collection_view[collectionViewId]
+  )
   const collectionData =
     recordMap.collection_query[collectionId]?.[collectionViewId]
   const parentPage = getBlockParentPage(block, recordMap)
@@ -181,7 +184,10 @@ function CollectionViewBlock({
 
   const title = getTextContent(collection.name).trim()
   const showTitle =
-    collectionView.format?.hide_linked_collection_name !== true && title
+    (block.format as any)?.hide_inline_collection_name !== true &&
+    collectionView.format?.hide_linked_collection_name !== true &&
+    title
+
   if (collection.icon) {
     block.format = {
       ...block.format,
@@ -201,6 +207,7 @@ function CollectionViewBlock({
             />
           )}
         </div>
+
         {showTitle && (
           <div className='notion-collection-header'>
             <div className='notion-collection-header-title'>
@@ -209,11 +216,13 @@ function CollectionViewBlock({
                 className='notion-page-title-icon'
                 hideDefaultIcon
               />
+
               {title}
             </div>
           </div>
         )}
       </div>
+
       <div className={cs('notion-collection', className)}>
         <CollectionView
           collection={collection}
@@ -251,7 +260,7 @@ function CollectionViewTabs({
           )}
         >
           <CollectionViewColumnDesc
-            collectionView={recordMap.collection_view[viewId]?.value}
+            collectionView={getBlockValue(recordMap.collection_view[viewId])}
           />
         </button>
       ))}

@@ -7,11 +7,22 @@ import { type User } from './user'
 // Aggregate map types
 // ----------------------------------------------------------------------------
 
+export type NotionMapBox<T> =
+  | {
+      role: Role
+      value: T
+    }
+  | {
+      // some blocks are double-nested...
+      role: Role
+      value: {
+        role: Role
+        value: T
+      }
+    }
+
 export interface NotionMap<T> {
-  [key: string]: {
-    role: Role
-    value: T
-  }
+  [key: string]: NotionMapBox<T>
 }
 
 export type BlockMap = NotionMap<Block>
@@ -54,6 +65,9 @@ export interface ExtendedRecordMap extends RecordMap {
 
   // optional map of preview images
   preview_images?: PreviewImageMap
+
+  // custom emojis map
+  custom_emojis?: CustomEmojiMap
 }
 
 export interface PageChunk {
@@ -122,4 +136,8 @@ export interface PreviewImage {
 
 export interface PreviewImageMap {
   [url: string]: PreviewImage | null
+}
+
+export interface CustomEmojiMap {
+  [emojiId: string]: string | null
 }

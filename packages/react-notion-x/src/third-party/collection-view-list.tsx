@@ -1,7 +1,9 @@
 import type * as types from 'notion-types'
-import type * as React from 'react'
 import { type PageBlock } from 'notion-types'
+import { getBlockValue } from 'notion-utils'
+import React from 'react'
 
+import { PageIcon } from '../components/page-icon'
 import { useNotionContext } from '../context'
 import { type CollectionViewProps } from '../types'
 import { CollectionGroup } from './collection-group'
@@ -54,12 +56,24 @@ function List({
 }) {
   const { components, recordMap, mapPageUrl } = useNotionContext()
 
+  const [isExpanded, setIsExpanded] = React.useState(false)
+
+  const { inline_collection_first_load_limit } = collectionView.format || {}
+  const loadLimit = inline_collection_first_load_limit?.limit
+  const shouldLimit = typeof loadLimit === 'number'
+
+  const showLoadMore =
+    shouldLimit && !isExpanded && (blockIds?.length || 0) > loadLimit
+  const visibleBlockIds = showLoadMore
+    ? blockIds?.slice(0, loadLimit)
+    : blockIds
+
   return (
     <div className='notion-list-collection'>
       <div className='notion-list-view'>
         <div className='notion-list-body'>
-          {blockIds?.map((blockId) => {
-            const block = recordMap.block[blockId]?.value as PageBlock
+          {visibleBlockIds?.map((blockId) => {
+            const block = getBlockValue(recordMap.block[blockId]) as PageBlock
             if (!block) return null
 
             const titleSchema = collection.schema.title
@@ -72,6 +86,11 @@ function List({
                 key={blockId}
               >
                 <div className='notion-list-item-title'>
+                  <PageIcon
+                    block={block}
+                    className='notion-page-title-icon'
+                    hideDefaultIcon
+                  />
                   <Property
                     schema={titleSchema}
                     data={titleData}
@@ -83,7 +102,7 @@ function List({
 
                 <div className='notion-list-item-body'>
                   {collectionView.format?.list_properties
-                    ?.filter((p: any) => p.visible)
+                    ?.filter((p: any) => p.visible && p.property !== 'title')
                     .map((p: any) => {
                       const schema = collection.schema[p.property]
                       const data =
@@ -116,6 +135,28 @@ function List({
           })}
         </div>
       </div>
+
+      {showLoadMore && (
+        <div
+          className='notion-collection-load-more'
+          onClick={() => setIsExpanded(true)}
+        >
+          <svg
+            viewBox='0 0 24 24'
+            height='16'
+            width='16'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='2'
+            strokeLinecap='round'
+            strokeLinejoin='round'
+          >
+            <path d='M12 5v14' />
+            <path d='m19 12-7 7-7-7' />
+          </svg>
+          Load more
+        </div>
+      )}
     </div>
   )
 }

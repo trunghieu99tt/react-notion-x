@@ -38,40 +38,38 @@ function off<T extends Window | Document | HTMLElement | EventTarget>(
   }
 }
 
-const isBrowser = typeof window !== 'undefined'
+const isBrowser = !!globalThis.window
 
 export const useWindowSize = (
   initialWidth = Infinity,
   initialHeight = Infinity
 ) => {
   const [state, setState] = useRafState<{ width: number; height: number }>({
-    width: isBrowser ? window.innerWidth : initialWidth,
-    height: isBrowser ? window.innerHeight : initialHeight
+    width: isBrowser ? globalThis.window.innerWidth : initialWidth,
+    height: isBrowser ? globalThis.window.innerHeight : initialHeight
   })
 
   useEffect((): (() => void) | void => {
     if (isBrowser) {
       const handler = () => {
         setState({
-          width: window.innerWidth,
-          height: window.innerHeight
+          width: globalThis.window.innerWidth,
+          height: globalThis.window.innerHeight
         })
       }
 
-      on(window, 'resize', handler)
+      on(globalThis.window, 'resize', handler)
 
       return () => {
-        off(window, 'resize', handler)
+        off(globalThis.window, 'resize', handler)
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return state
 }
 
 export const useEffectOnce = (effect: EffectCallback) => {
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(effect, [])
 }
 
@@ -134,7 +132,6 @@ export const useLocalStorage = <T>(
       : options.deserializer
     : JSON.parse
 
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   const initializer = useRef((key: string) => {
     try {
       const serializer = options
@@ -160,15 +157,12 @@ export const useLocalStorage = <T>(
     }
   })
 
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   const [state, setState] = useState<T | undefined>(() =>
     initializer.current(key)
   )
 
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   useLayoutEffect(() => setState(initializer.current(key)), [key])
 
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   const set: Dispatch<SetStateAction<T | undefined>> = useCallback(
     (valOrFunc) => {
       try {
@@ -194,11 +188,10 @@ export const useLocalStorage = <T>(
         // localStorage can throw. Also JSON.stringify can throw.
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
     [key, setState]
   )
 
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   const remove = useCallback(() => {
     try {
       localStorage.removeItem(key)
@@ -210,4 +203,21 @@ export const useLocalStorage = <T>(
   }, [key, setState])
 
   return [state, set, remove]
+}
+
+// Style mismatches between server rendering and client hydration can act
+// unpredictably. Styles that depend on client state should use this hook to prevent
+// a hydration mismatch by preserving the server style until the component is mounted.
+// More details here:
+// https://github.com/vercel/next.js/issues/17463
+export const useClientStyle = (
+  clientStyle: React.CSSProperties,
+  serverStyle: React.CSSProperties = {}
+) => {
+  const [isMounted, setIsMounted] = useState(false)
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  return isMounted ? clientStyle : serverStyle
 }

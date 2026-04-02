@@ -9,6 +9,7 @@ export type BlockType =
   | 'header'
   | 'sub_header'
   | 'sub_sub_header'
+  | 'header_4'
   | 'quote'
   | 'equation'
   | 'to_do'
@@ -43,7 +44,9 @@ export type BlockType =
   | 'table_row'
   | 'external_object_instance'
   | 'breadcrumb'
+  | 'button'
   | 'miro'
+  | 'tab'
   // fallback for unknown blocks
   | string
 
@@ -56,6 +59,7 @@ export type Block =
   | HeaderBlock
   | SubHeaderBlock
   | SubSubHeaderBlock
+  | Header4HeaderBlock
   | TodoBlock
   | TableOfContentsBlock
   | DividerBlock
@@ -91,6 +95,8 @@ export type Block =
   | TableRowBlock
   | ExternalObjectInstance
   | BreadcrumbInstance
+  | ButtonBlock
+  | TabBlock
 
 /**
  * Base properties shared by all blocks.
@@ -131,6 +137,7 @@ export interface BaseContentBlock extends BaseBlock {
   properties: {
     source: string[][]
     caption?: Decoration[]
+    alt_text?: Decoration[]
   }
   format?: {
     block_alignment: 'center' | 'left' | 'right'
@@ -192,6 +199,9 @@ export interface BulletedListBlock extends BaseTextBlock {
 
 export interface NumberedListBlock extends BaseTextBlock {
   type: 'numbered_list'
+  format?: BaseTextBlock['format'] & {
+    list_start_index?: number
+  }
 }
 
 export interface HeaderBlock extends BaseTextBlock {
@@ -212,6 +222,13 @@ export interface SubHeaderBlock extends BaseTextBlock {
 
 export interface SubSubHeaderBlock extends BaseTextBlock {
   type: 'sub_sub_header'
+  format?: {
+    block_color: Color
+    toggleable?: boolean
+  }
+}
+export interface Header4HeaderBlock extends BaseTextBlock {
+  type: 'header_4'
   format?: {
     block_color: Color
     toggleable?: boolean
@@ -273,6 +290,21 @@ export interface ToggleBlock extends BaseBlock {
   properties: {
     title: Decoration[]
   }
+}
+
+export interface ButtonBlock extends BaseBlock {
+  type: 'button'
+  format?: {
+    block_color?: Color
+    automation_id?: string
+  }
+  properties?: {
+    title?: Decoration[]
+  }
+}
+
+export interface TabBlock extends BaseBlock {
+  type: 'tab'
 }
 
 export interface ImageBlock extends BaseContentBlock {
@@ -398,6 +430,7 @@ export interface CollectionViewPageBlock extends BasePageBlock {
   collection_id?: ID
   view_ids: ID[]
   format: BasePageBlock['format'] & {
+    hide_inline_collection_name?: boolean
     collection_pointer?: {
       id: ID
       spaceId: ID

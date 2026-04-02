@@ -1,5 +1,5 @@
 import type * as types from 'notion-types'
-import type * as React from 'react'
+import type React from 'react'
 
 export type MapPageUrlFn = (
   pageId: string,
@@ -29,6 +29,11 @@ export interface NotionComponents {
   Code: any
   Equation: any
   Callout?: any
+  Button?: React.ComponentType<{
+    blockId: string
+    block: types.ButtonBlock
+    className?: string
+  }>
 
   // collection
   Collection: any
